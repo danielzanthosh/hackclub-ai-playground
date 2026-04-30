@@ -5,7 +5,7 @@ import { useUser } from "@/components/user-provider";
 import { useParams } from "@/components/params-panel";
 import { supabase } from "@/lib/supabase";
 import { streamChat, ChatMessage } from "@/lib/hackclub-ai";
-import { Paperclip, Send, Loader2, Bot, User } from "lucide-center";
+import { Paperclip, Send, Loader2, Bot, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import ReactMarkdown from "react-markdown";
