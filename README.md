@@ -41,8 +41,8 @@ A feature-complete AI testing playground for Hack Club members. Test 30+ AI mode
 3. Set up environment variables:
    Create a `.env.local` file in the root directory and add your Supabase project details:
    ```env
-   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   NEXT_PUBLIC_SUPABASE_URL=https://zshtxzwthrilsmjkfufr.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_m9KLdFuS-lqBzsVzF_OqVg_WS0ntxqg
    ```
 
 4. Run the development server:
@@ -52,7 +52,7 @@ A feature-complete AI testing playground for Hack Club members. Test 30+ AI mode
 
 5. Apply migrations:
    ```bash
-   npx supabase link --project-ref your-project-ref
+   npx supabase link --project-ref zshtxzwthrilsmjkfufr
    npx supabase db push
    ```
 
@@ -62,4 +62,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Credits
 
-Made with ❤️ by [Grace Site](https://gracesite.vercel.app) & [Daniel Santhosh](https://github.com/danielsanthosh).
+Made with ❤️ by [Grace Site](gracesite.vercel.app) & [Daniel Santhosh](https://github.com/danielsanthosh).
