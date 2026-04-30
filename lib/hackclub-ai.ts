@@ -15,9 +15,13 @@ export interface ChatParams {
   model: string;
   temperature?: number;
   max_tokens?: number;
+  maxTokens?: number; // UI compatibility
   top_p?: number;
+  topP?: number; // UI compatibility
   frequency_penalty?: number;
+  frequencyPenalty?: number; // UI compatibility
   presence_penalty?: number;
+  presencePenalty?: number; // UI compatibility
   stream?: boolean;
 }
 
@@ -35,12 +39,23 @@ export async function streamChat(
   const url = `${safeBaseUrl}/chat/completions`;
   let fullText = "";
 
+  // Map camelCase UI params to snake_case API params
+  const apiParams = {
+    model: params.model,
+    temperature: params.temperature,
+    max_tokens: params.max_tokens ?? params.maxTokens,
+    top_p: params.top_p ?? params.topP,
+    frequency_penalty: params.frequency_penalty ?? params.frequencyPenalty,
+    presence_penalty: params.presence_penalty ?? params.presencePenalty,
+    stream: params.stream,
+  };
+
   try {
-    if (!params.stream) {
+    if (!apiParams.stream) {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({ ...params, messages, stream: false }),
+        body: JSON.stringify({ ...apiParams, messages, stream: false }),
       });
       if (!res.ok) {
         const errText = await res.text();
@@ -60,7 +75,7 @@ export async function streamChat(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        ...params,
+        ...apiParams,
         messages,
         stream: true,
       }),

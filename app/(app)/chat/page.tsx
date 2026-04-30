@@ -4,8 +4,19 @@ import { useState, useRef, useEffect } from "react";
 import { useUser } from "@/components/user-provider";
 import { useParams } from "@/components/params-panel";
 import { supabase } from "@/lib/supabase";
-import { streamChat, ChatMessage } from "@/lib/hackclub-ai";
+import { streamChat, ChatMessage, generateImage } from "@/lib/hackclub-ai";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { Paperclip, Send, Loader2, Bot, User, Mic, MicOff, StopCircle, Image as ImageIcon, Music as MusicIcon, Play, Sparkles, Headphones, Wand2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import gsap from "gsap";
 
 export default function ChatPage() {
   const { apiKey, baseUrl, userId, personalization } = useUser();

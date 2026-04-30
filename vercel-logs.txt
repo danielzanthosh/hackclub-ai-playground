@@ -1,0 +1,39 @@
+15:30:15.059 Running build in Washington, D.C., USA (East) – iad1
+15:30:15.059 Build machine configuration: 2 cores, 8 GB
+15:30:15.183 Cloning github.com/danielzanthosh/hackclub-ai-playground (Branch: master, Commit: b715c82)
+15:30:15.515 Warning: Failed to fetch one or more git submodules
+15:30:15.516 Cloning completed: 332.000ms
+15:30:16.716 Restored build cache from previous deployment (DpAUHWUTXQYtzZDMCxcT5pyJ6gJX)
+15:30:16.931 Running "vercel build"
+15:30:17.630 Vercel CLI 51.6.1
+15:30:17.886 Installing dependencies...
+15:30:19.523 
+15:30:19.524 added 1 package in 1s
+15:30:19.525 
+15:30:19.525 323 packages are looking for funding
+15:30:19.526   run `npm fund` for details
+15:30:19.556 Detected Next.js version: 16.1.7
+15:30:19.561 Running "npm run build"
+15:30:19.660 
+15:30:19.661 > hackclub-ai-playground@0.0.1 build
+15:30:19.661 > next build
+15:30:19.661 
+15:30:20.410 ▲ Next.js 16.1.7 (Turbopack)
+15:30:20.410 
+15:30:20.444   Creating an optimized production build ...
+15:30:31.364 ✓ Compiled successfully in 10.6s
+15:30:31.366   Running TypeScript ...
+15:30:37.161 Failed to compile.
+15:30:37.162 
+15:30:37.162 ./app/(app)/chat/[id]/page.tsx:185:50
+15:30:37.162 Type error: Object literal may only specify known properties, but 'maxTokens' does not exist in type 'ChatParams'. Did you mean to write 'max_tokens'?
+15:30:37.162 
+15:30:37.163 [0m [90m 183 |[39m               apiKey[33m,[39m
+15:30:37.163  [90m 184 |[39m               apiMessages[33m,[39m
+15:30:37.163 [31m[1m>[22m[39m[90m 185 |[39m               { [33m...[39mcurrentParams[33m,[39m stream[33m:[39m [36mfalse[39m[33m,[39m maxTokens[33m:[39m [35m20[39m }[33m,[39m
+15:30:37.163  [90m     |[39m                                                  [31m[1m^[22m[39m
+15:30:37.163  [90m 186 |[39m               () [33m=>[39m {}[33m,[39m
+15:30:37.164  [90m 187 |[39m               [36masync[39m (fullText) [33m=>[39m {
+15:30:37.164  [90m 188 |[39m                 [36mconst[39m cleanTitle [33m=[39m fullText[33m.[39mreplace([35m/["']/g[39m[33m,[39m [32m''[39m)[33m.[39mtrim()[33m;[39m[0m
+15:30:37.196 Next.js build worker exited with code: 1 and signal: null
+15:30:37.242 Error: Command "npm run build" exited with 1
