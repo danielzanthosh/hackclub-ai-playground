@@ -149,7 +149,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const login = () => {
     supabase.auth.signInWithOAuth({
-      provider: "keycloak" as any, // Reverting to keycloak slot for stability
+      provider: "hackclub" as any, // Matches the 'hackclub' identifier in Supabase OIDC
       options: {
         redirectTo: window.location.origin,
         scopes: "openid profile email slack_id",
