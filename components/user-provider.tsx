@@ -149,7 +149,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const login = () => {
     supabase.auth.signInWithOAuth({
-      provider: "hackclub" as any, // Matches the 'hackclub' identifier in Supabase OIDC
+      provider: "custom:hackclub" as any, // Supabase custom OIDC often needs 'custom:' prefix
       options: {
         redirectTo: window.location.origin,
         scopes: "openid profile email slack_id",
