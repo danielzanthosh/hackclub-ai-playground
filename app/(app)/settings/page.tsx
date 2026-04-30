@@ -6,9 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { supabase } from "@/lib/supabase";
 import { encryptApiKey } from "@/lib/crypto";
 import { toast } from "sonner";
 import { Loader2, Save } from "lucide-react";
@@ -20,20 +18,30 @@ export default function SettingsPage() {
   const [inputName, setInputName] = useState(name || "Hack Clubber");
   const [isSaving, setIsSaving] = useState(false);
   
-  const updateUser = useMutation(api.users.updateUser);
-
   const handleSave = async () => {
     if (!uuid) return;
     setIsSaving(true);
     try {
-      const updates: any = { name: inputName, baseUrl: inputUrl };
+      const updates: any = { 
+        name: inputName, 
+        base_url: inputUrl,
+        updated_at: Date.now()
+      };
       if (inputKey) {
-        updates.apiKey = await encryptApiKey(inputKey);
+        updates.api_key = await encryptApiKey(inputKey);
       }
-      await updateUser({ uuid, ...updates });
+      
+      const { error } = await supabase
+        .from("users")
+        .update(updates)
+        .eq("uuid", uuid);
+
+      if (error) throw error;
+
       toast.success("Settings saved successfully!");
       if (inputKey) setInputKey(""); // clear after save
     } catch (err) {
+      console.error(err);
       toast.error("Failed to save settings");
     } finally {
       setIsSaving(false);
@@ -64,7 +72,7 @@ export default function SettingsPage() {
                 onChange={(e) => setInputKey(e.target.value)} 
                 placeholder={apiKey ? "•••••••••••••••• (Key is set)" : "sk-..."}
               />
-              <p className="text-xs text-muted-foreground">Your key is encrypted locally and stored securely in Convex.</p>
+              <p className="text-xs text-muted-foreground">Your key is encrypted locally and stored securely in Supabase.</p>
             </div>
             <div className="space-y-2">
               <Label>Base URL</Label>

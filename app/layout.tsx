@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { ConvexClientProvider } from "@/components/convex-provider";
 import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
@@ -23,19 +22,17 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
-        <ConvexClientProvider>
-          {children}
-          <Toaster
-            theme="dark"
-            toastOptions={{
-              style: {
-                background: "oklch(0.1 0.006 265)",
-                border: "1px solid oklch(0.18 0.008 265)",
-                color: "oklch(0.92 0.01 265)",
-              },
-            }}
-          />
-        </ConvexClientProvider>
+        {children}
+        <Toaster
+          theme="dark"
+          toastOptions={{
+            style: {
+              background: "oklch(0.1 0.006 265)",
+              border: "1px solid oklch(0.18 0.008 265)",
+              color: "oklch(0.92 0.01 265)",
+            },
+          }}
+        />
       </body>
     </html>
   );

@@ -15,7 +15,7 @@ A feature-complete AI testing playground for Hack Club members. Test 30+ AI mode
 ## Tech Stack
 
 - **Frontend**: [Next.js](https://nextjs.org/) (App Router), [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/)
-- **Backend**: [Convex](https://www.convex.dev/)
+- **Backend**: [Supabase](https://supabase.com/) (PostgreSQL + RLS)
 - **Icons**: [Lucide React](https://lucide.dev/)
 
 ## Getting Started
@@ -23,14 +23,14 @@ A feature-complete AI testing playground for Hack Club members. Test 30+ AI mode
 ### Prerequisites
 
 - Node.js installed
-- A [Convex](https://www.convex.dev/) account
+- A [Supabase](https://supabase.com/) account
 
 ### Installation
 
 1. Clone the repository:
    ```bash
    git clone https://github.com/danielzanthosh/hackclub-ai-playground.git
-   cd hc-ai-playground
+   cd hackclub-ai-playground
    ```
 
 2. Install dependencies:
@@ -39,10 +39,10 @@ A feature-complete AI testing playground for Hack Club members. Test 30+ AI mode
    ```
 
 3. Set up environment variables:
-   Create a `.env.local` file in the root directory and add your Convex deployment details:
+   Create a `.env.local` file in the root directory and add your Supabase project details:
    ```env
-   CONVEX_DEPLOYMENT=...
-   NEXT_PUBLIC_CONVEX_URL=...
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
    ```
 
 4. Run the development server:
@@ -50,9 +50,10 @@ A feature-complete AI testing playground for Hack Club members. Test 30+ AI mode
    npm run dev
    ```
 
-5. Run Convex:
+5. Apply migrations:
    ```bash
-   npx convex dev
+   npx supabase link --project-ref your-project-ref
+   npx supabase db push
    ```
 
 ## License
@@ -61,4 +62,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Credits
 
-Made with ❤️ by [Grace Site](gracesite.vercel.app) & [Daniel Santhosh](https://github.com/danielsanthosh).
+Made with ❤️ by [Grace Site](https://gracesite.vercel.app) & [Daniel Santhosh](https://github.com/danielsanthosh).

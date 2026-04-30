@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import useSWR from "swr";
+import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-provider";
 import { useLayoutState } from "@/components/layout-context";
 import { Settings, MessageSquare, Image, Mic, Music, Hash, Wrench, PlusCircle, Trash2, PanelLeftClose, PanelLeftOpen, SplitSquareHorizontal } from "lucide-react";
-import { useMutation } from "convex/react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -41,8 +40,34 @@ export function Sidebar() {
   const pathname = usePathname();
   const { userId, name, avatarColor, accentColor } = useUser();
   const { isSidebarOpen, setSidebarOpen } = useLayoutState();
-  const chats = useQuery(api.chats.listChats, userId ? { userId } : "skip") ?? [];
-  const deleteChat = useMutation(api.chats.deleteChat);
+
+  const { data: chats = [], mutate } = useSWR(
+    userId ? `chats-${userId}` : null,
+    async () => {
+      const { data, error } = await supabase
+        .from("chats")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      
+      if (error) {
+        console.error("Error fetching chats:", error);
+        return [];
+      }
+      return data;
+    }
+  );
+
+  const deleteChat = async (chatId: string) => {
+    const { error } = await supabase.from("chats").delete().eq("id", chatId);
+    if (error) {
+      toast.error("Failed to delete chat");
+    } else {
+      mutate(chats.filter((c: any) => c.id !== chatId));
+      toast.success("Chat deleted");
+    }
+  };
 
   if (!isSidebarOpen) {
     return (
@@ -111,16 +136,15 @@ export function Sidebar() {
         {chats.length > 0 && (
           <>
             <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-1 pt-1">History</p>
-            {chats.map((chat) => (
-              <div key={chat._id} className="group flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-sidebar-accent cursor-pointer transition-colors">
-                <Link href={`/chat/${chat._id}`} className="flex-1 truncate text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground">
+            {chats.map((chat: any) => (
+              <div key={chat.id} className="group flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-sidebar-accent cursor-pointer transition-colors">
+                <Link href={`/chat/${chat.id}`} className="flex-1 truncate text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground">
                   {chat.title}
                 </Link>
                 <button
                   onClick={async (e) => {
                     e.preventDefault();
-                    await deleteChat({ chatId: chat._id });
-                    toast.success("Chat deleted");
+                    await deleteChat(chat.id);
                   }}
                   className="hidden group-hover:flex text-muted-foreground hover:text-destructive transition-colors"
                 >

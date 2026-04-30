@@ -2,28 +2,44 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useUser } from "@/components/user-provider";
-import { useParams } from "@/components/params-panel";
+import { useParams as useChatParams } from "@/components/params-panel";
 import { supabase } from "@/lib/supabase";
 import { streamChat, ChatMessage } from "@/lib/hackclub-ai";
-import { Paperclip, Send, Loader2, Bot, User } from "lucide-center";
+import { Paperclip, Send, Loader2, Bot, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
-import { useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import useSWR from "swr";
 
-export default function ChatPage() {
+export default function ChatIdPage() {
+  const { id } = useParams();
   const { apiKey, baseUrl, userId } = useUser();
-  const { params, activeModel } = useParams();
+  const { params: currentParams, activeModel } = useChatParams();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
   
   const endRef = useRef<HTMLDivElement>(null);
+
+  const { data: chat } = useSWR(id ? `chat-${id}` : null, async () => {
+    const { data, error } = await supabase.from("chats").select("*, messages(*)").eq("id", id).single();
+    if (error) throw error;
+    return data;
+  });
+
+  useEffect(() => {
+    if (chat?.messages) {
+      const sortedMessages = chat.messages
+        .sort((a: any, b: any) => a.timestamp - b.timestamp)
+        .map((m: any) => ({ role: m.role, content: m.content }));
+      setMessages(sortedMessages);
+    }
+  }, [chat]);
   
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -31,7 +47,7 @@ export default function ChatPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !apiKey || !userId) return;
+    if (!input.trim() || !apiKey || !userId || !id) return;
 
     const userMsg: ChatMessage = { role: "user", content: input };
     setMessages((prev) => [...prev, userMsg]);
@@ -39,7 +55,7 @@ export default function ChatPage() {
     setIsLoading(true);
 
     const apiMessages = [
-      { role: "system", content: params.systemPrompt } as ChatMessage,
+      { role: "system", content: currentParams.systemPrompt } as ChatMessage,
       ...messages,
       userMsg,
     ];
@@ -51,7 +67,7 @@ export default function ChatPage() {
       baseUrl,
       apiKey,
       apiMessages,
-      params,
+      currentParams,
       (chunk) => {
         currentAiText = chunk;
         setMessages((prev) => {
@@ -63,40 +79,15 @@ export default function ChatPage() {
       async (fullText) => {
         setIsLoading(false);
         
-        // Auto-title from first user message
-        const title = input.slice(0, 60) + (input.length > 60 ? "…" : "");
-        
-        // Save to Supabase
-        const { data: chat, error: chatError } = await supabase
-          .from("chats")
-          .insert([
-            {
-              user_id: userId,
-              title: title,
-              model: activeModel,
-              params: params,
-            },
-          ])
-          .select()
-          .single();
-
-        if (chatError) {
-          console.error("Error creating chat:", chatError);
-          toast.error("Failed to save chat");
-          return;
-        }
-
-        const { error: msgError } = await supabase.from("messages").insert([
-          { chat_id: chat.id, role: "user", content: input },
-          { chat_id: chat.id, role: "assistant", content: fullText },
+        const { error } = await supabase.from("messages").insert([
+          { chat_id: id, role: "user", content: input },
+          { chat_id: id, role: "assistant", content: fullText },
         ]);
 
-        if (msgError) {
-          console.error("Error saving messages:", msgError);
+        if (error) {
+          console.error("Error saving messages:", error);
+          toast.error("Failed to save message");
         }
-
-        // Redirect to the new chat page
-        router.push(`/chat/${chat.id}`);
       },
       (err) => {
         console.error(err);

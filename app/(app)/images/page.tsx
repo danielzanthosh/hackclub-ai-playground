@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useUser } from "@/components/user-provider";
 import { useParams } from "@/components/params-panel";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { supabase } from "@/lib/supabase";
 import { generateImage } from "@/lib/hackclub-ai";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,8 +20,6 @@ export default function ImagesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [outputUrl, setOutputUrl] = useState<string | null>(null);
   const [error, setError] = useState("");
-
-  const saveGeneration = useMutation(api.generations.saveGeneration);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,14 +38,17 @@ export default function ImagesPage() {
       setOutputUrl(url);
 
       if (userId && url) {
-        await saveGeneration({
-          userId,
-          mode: "image",
-          prompt,
-          params: JSON.stringify({ model: imageModel }),
-          outputUrl: url,
-          model: imageModel,
-        });
+        const { error: saveError } = await supabase.from("generations").insert([
+          {
+            user_id: userId,
+            mode: "image",
+            prompt,
+            params: { model: imageModel },
+            output_url: url,
+            model: imageModel,
+          },
+        ]);
+        if (saveError) console.error("Error saving generation:", saveError);
       }
     } catch (err: any) {
       setError(err.message || "Failed to generate image");

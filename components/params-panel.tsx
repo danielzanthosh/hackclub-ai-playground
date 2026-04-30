@@ -1,17 +1,14 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { supabase } from "@/lib/supabase";
 import { useUser } from "@/components/user-provider";
-import { HC_ACCENT_COLORS, applyAccentColor, BUILTIN_MODELS } from "@/lib/models";
-import { encryptApiKey } from "@/lib/crypto";
+import { HC_ACCENT_COLORS, applyAccentColor } from "@/lib/models";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
@@ -20,7 +17,6 @@ import { Switch } from "@/components/ui/switch";
 import { PanelRightClose, PanelRightOpen, PenLine, ListFilter, Check, ChevronsUpDown, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLayoutState } from "@/components/layout-context";
-import { createContext, useContext } from "react";
 
 export interface ChatParams {
   model: string;
@@ -47,22 +43,20 @@ export const defaultChatParams: ChatParams = {
 const ParamsContext = createContext<{
   params: ChatParams;
   setParams: (p: Partial<ChatParams>) => void;
-}>({ params: defaultChatParams, setParams: () => {} });
+  activeModel: string;
+}>({ params: defaultChatParams, setParams: () => {}, activeModel: defaultChatParams.model });
 
 export function useParams() {
   return useContext(ParamsContext);
 }
 
-import { useCallback } from "react";
-
 export function ParamsPanelProvider({ children }: { children: React.ReactNode }) {
   const [params, setParamsState] = useState<ChatParams>(defaultChatParams);
-  const [isCustomModel, setIsCustomModel] = useState(false);
   const setParams = useCallback((p: Partial<ChatParams>) => {
     setParamsState((prev) => ({ ...prev, ...p }));
   }, []);
   return (
-    <ParamsContext.Provider value={{ params, setParams }}>
+    <ParamsContext.Provider value={{ params, setParams, activeModel: params.model }}>
       {children}
     </ParamsContext.Provider>
   );
@@ -73,7 +67,6 @@ export function ParamsPanel() {
   const { uuid, userId, accentColor, apiKey, customModels } = useUser();
   const { isParamsOpen, setParamsOpen } = useLayoutState();
   const { params, setParams } = useParams();
-  const updateUser = useMutation(api.users.updateUser);
   const [isCustomModel, setIsCustomModel] = useState(false);
   const [openCombobox, setOpenCombobox] = useState(false);
 
@@ -108,16 +101,32 @@ export function ParamsPanel() {
       toast.info("Model already saved");
       return;
     }
-    await updateUser({ uuid, customModels: [params.model, ...current] });
-    toast.success("Custom model saved!");
-    setIsCustomModel(false);
+    
+    const { error } = await supabase
+      .from("users")
+      .update({ custom_models: [params.model, ...current] })
+      .eq("uuid", uuid);
+    
+    if (error) {
+      toast.error("Failed to save custom model");
+    } else {
+      toast.success("Custom model saved!");
+      setIsCustomModel(false);
+    }
   };
 
   const handleAccentChange = async (hex: string) => {
     applyAccentColor(hex);
     if (uuid) {
-      await updateUser({ uuid, accentColor: hex });
-      toast.success("Accent color updated");
+      const { error } = await supabase
+        .from("users")
+        .update({ accent_color: hex })
+        .eq("uuid", uuid);
+      if (error) {
+        toast.error("Failed to update accent color");
+      } else {
+        toast.success("Accent color updated");
+      }
     }
   };
 
