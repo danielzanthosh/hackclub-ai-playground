@@ -58,7 +58,7 @@ A feature-complete AI testing playground for Hack Club members. Test 30+ AI mode
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Prosperity Public License 3.0.0 - see the [LICENSE](LICENSE) file for details. This license allows free use for non-commercial purposes while requiring a commercial license for paid use after a 30-day trial.
 
 ## Credits
 
