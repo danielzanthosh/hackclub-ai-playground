@@ -62,4 +62,4 @@ This project is licensed under the Prosperity Public License 3.0.0 - see the [LI
 
 ## Credits
 
-Made with ❤️ by [Grace Site](gracesite.vercel.app) & [Daniel Santhosh](https://github.com/danielsanthosh).
+Made with ❤️ by [Grace Site](https://gracesite.vercel.app) & [Daniel Santhosh](https://github.com/danielsanthosh).
