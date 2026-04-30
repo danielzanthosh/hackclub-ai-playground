@@ -40,7 +40,7 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { userId, name, avatarColor, accentColor } = useUser();
+  const { userId, sub, name, avatarColor, accentColor } = useUser();
   const { isSidebarOpen, setSidebarOpen } = useLayoutState();
   const sideRef = useRef<HTMLElement>(null);
 
@@ -195,7 +195,9 @@ export function Sidebar() {
           />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold text-sidebar-foreground truncate">{name}</p>
-            <p className="text-[10px] text-muted-foreground">Settings & Profile</p>
+            <p className="text-[10px] text-muted-foreground">
+              {sub ? "✓ Identity Connected" : "Settings & Profile"}
+            </p>
           </div>
           <Settings size={13} className="text-muted-foreground flex-shrink-0" />
         </Link>

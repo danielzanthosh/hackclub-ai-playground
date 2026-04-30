@@ -10,11 +10,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { supabase } from "@/lib/supabase";
 import { encryptApiKey } from "@/lib/crypto";
 import { toast } from "sonner";
-import { Loader2, Save, Sparkles, User as UserIcon, Settings2 } from "lucide-react";
+import { Loader2, Save, Sparkles, User as UserIcon, Settings2, LogOut, LogIn } from "lucide-react";
 import gsap from "gsap";
 
 export default function SettingsPage() {
-  const { uuid, name, apiKey, baseUrl, isReady, defaultChatModel, defaultSystemPrompt, personalization } = useUser();
+  const { uuid, sub, name, apiKey, baseUrl, isReady, defaultChatModel, defaultSystemPrompt, personalization, login, logout } = useUser();
   const [inputKey, setInputKey] = useState("");
   const [inputUrl, setInputUrl] = useState(baseUrl || "https://ai.hackclub.com/proxy/v1");
   const [inputName, setInputName] = useState(name || "Hack Clubber");
@@ -81,6 +81,50 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-6">
+        {/* Account Card */}
+        <Card className="settings-card bg-card/50 backdrop-blur-sm border-border overflow-hidden relative">
+          <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+            <UserIcon size={120} />
+          </div>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              Hack Club Account
+            </CardTitle>
+            <CardDescription>
+              {sub 
+                ? "You are logged in with your Hack Club Identity." 
+                : "Sign in to sync your chats and preferences across devices."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {sub ? (
+              <div className="flex items-center justify-between bg-background/40 p-4 rounded-2xl border border-border/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[var(--hc-accent)] flex items-center justify-center text-white font-bold text-lg">
+                    {name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">{name}</p>
+                    <p className="text-[10px] text-muted-foreground">Connected via Identity</p>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={logout} className="text-muted-foreground hover:text-destructive">
+                  <LogOut size={16} className="mr-2" />
+                  Logout
+                </Button>
+              </div>
+            ) : (
+              <Button 
+                onClick={login} 
+                className="w-full h-12 rounded-2xl bg-[#ec3750] hover:bg-[#ec3750]/90 text-white font-bold shadow-lg shadow-[#ec3750]/20 flex items-center gap-2"
+              >
+                <LogIn size={18} />
+                Login with Hack Club
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
         {/* API Card */}
         <Card className="settings-card bg-card/50 backdrop-blur-sm border-border">
           <CardHeader>

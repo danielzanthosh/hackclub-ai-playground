@@ -10,6 +10,7 @@ import { decryptApiKey } from "@/lib/crypto";
 interface UserContextValue {
   uuid: string;
   userId: string | null;
+  sub: string | null;
   name: string;
   avatarColor: string;
   accentColor: string;
@@ -25,11 +26,14 @@ interface UserContextValue {
     bio?: string;
   };
   isReady: boolean;
+  login: () => void;
+  logout: () => void;
 }
 
 const UserContext = createContext<UserContextValue>({
   uuid: "",
   userId: null,
+  sub: null,
   name: "Hack Clubber",
   avatarColor: "#ec3750",
   accentColor: "#ec3750",
@@ -40,6 +44,8 @@ const UserContext = createContext<UserContextValue>({
   defaultSystemPrompt: "You are a helpful AI assistant.",
   personalization: {},
   isReady: false,
+  login: () => {},
+  logout: () => {},
 });
 
 export function useUser() {
@@ -49,31 +55,76 @@ export function useUser() {
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [uuid, setUuid] = useState("");
   const [apiKey, setApiKey] = useState("");
+  const [sessionUser, setSessionUser] = useState<any>(null);
 
   useEffect(() => {
     setUuid(getOrInitUuid());
+    
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSessionUser(session?.user ?? null);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSessionUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const { data: user, mutate } = useSWR(
-    uuid ? `user-${uuid}` : null,
+    uuid || sessionUser ? `user-${uuid}-${sessionUser?.id}` : null,
     async () => {
-      const { data, error } = await supabase
-        .from("users")
-        .select("*")
-        .eq("uuid", uuid)
-        .single();
+      // 1. Try to find user by 'sub' (authenticated)
+      if (sessionUser) {
+        const { data: authUser, error: authError } = await supabase
+          .from("users")
+          .select("*")
+          .eq("sub", sessionUser.id)
+          .single();
+        
+        if (authUser) return authUser;
+        
+        // 2. If no 'sub' match, try to link current 'uuid' user to this 'sub'
+        if (uuid) {
+          const { data: anonUser } = await supabase
+            .from("users")
+            .select("*")
+            .eq("uuid", uuid)
+            .single();
 
-      if (error && error.code !== "PGRST116") {
-        console.error("Error fetching user:", error);
-        return null;
+          if (anonUser && !anonUser.sub) {
+            const { data: linkedUser, error: linkError } = await supabase
+              .from("users")
+              .update({ sub: sessionUser.id, name: sessionUser.user_metadata?.full_name || anonUser.name })
+              .eq("uuid", uuid)
+              .select()
+              .single();
+            
+            if (!linkError) return linkedUser;
+          }
+        }
       }
-      return data;
+
+      // 3. Fallback to anonymous lookup
+      if (uuid) {
+        const { data, error } = await supabase
+          .from("users")
+          .select("*")
+          .eq("uuid", uuid)
+          .single();
+
+        if (!error) return data;
+      }
+      
+      return null;
     }
   );
 
-  // Init user on first load
+  // Init user on first load if nothing found
   useEffect(() => {
-    if (uuid && user === null) {
+    if (uuid && user === null && !sessionUser) {
       const initUser = async () => {
         const { data, error } = await supabase
           .from("users")
@@ -90,15 +141,25 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           .select()
           .single();
 
-        if (error) {
-          console.error("Error creating user:", error);
-        } else {
-          mutate(data);
-        }
+        if (!error) mutate(data);
       };
       initUser();
     }
-  }, [uuid, user, mutate]);
+  }, [uuid, user, sessionUser, mutate]);
+
+  const login = () => {
+    supabase.auth.signInWithOAuth({
+      provider: "keycloak" as any, // Supabase often uses Keycloak for custom OIDC
+      options: {
+        redirectTo: window.location.origin,
+        scopes: "openid profile email slack_id",
+      }
+    });
+  };
+
+  const logout = () => {
+    supabase.auth.signOut();
+  };
 
   // Apply accent color to CSS var
   useEffect(() => {
@@ -121,6 +182,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       value={{
         uuid,
         userId: user?.id ?? null,
+        sub: user?.sub ?? null,
         name: user?.name ?? "Hack Clubber",
         avatarColor: user?.avatar_color ?? "#ec3750",
         accentColor: user?.accent_color ?? "#ec3750",
@@ -131,6 +193,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         defaultSystemPrompt: user?.default_system_prompt ?? "You are a helpful AI assistant.",
         personalization: user?.personalization ?? {},
         isReady: !!user,
+        login,
+        logout,
       }}
     >
       {children}
