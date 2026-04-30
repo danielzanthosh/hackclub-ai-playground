@@ -182,7 +182,7 @@ export default function ChatIdPage() {
               baseUrl,
               apiKey,
               apiMessages,
-              { ...currentParams, stream: false, maxTokens: 20 },
+              { ...currentParams, stream: false, max_tokens: 20 },
               () => {},
               async (fullText) => {
                 const cleanTitle = fullText.replace(/["']/g, '').trim();
