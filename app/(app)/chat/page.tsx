@@ -15,7 +15,10 @@ import "katex/dist/katex.min.css";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import gsap from "gsap";
+import { Paperclip, Send, Loader2, Bot, User, Mic, MicOff, StopCircle, Image as ImageIcon, Music as MusicIcon, Play } from "lucide-react";
+
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Sparkles, Headphones, Wand2 } from "lucide-react";
 
 export default function ChatPage() {
   const { apiKey, baseUrl, userId, personalization } = useUser();
@@ -23,12 +26,112 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
   const router = useRouter();
-  
+
   const endRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+
+  // Tools
+  const handleQuickImage = async () => {
+    if (!input.trim()) { toast.error("Enter a prompt first"); return; }
+    setIsLoading(true);
+    setIsToolsOpen(false);
+    try {
+      const url = await generateImage(baseUrl, apiKey, input, "google/gemini-2.5-flash-image");
+      setMessages(prev => [...prev, { role: "assistant", content: `![Generated Image](${url})` }]);
+    } catch (err) {
+      toast.error("Image generation failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleQuickTTS = async () => {
+    if (!input.trim()) { toast.error("Enter text first"); return; }
+    setIsLoading(true);
+    setIsToolsOpen(false);
+    try {
+      const safeBaseUrl = "/proxy";
+      const res = await fetch(`${safeBaseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: "openai/gpt-4o-audio-preview",
+          messages: [{ role: "user", content: input }],
+          modalities: ["text", "audio"],
+          audio: { voice: "alloy", format: "mp3" }
+        }),
+      });
+      const data = await res.json();
+      const audioData = data.choices?.[0]?.message?.audio?.data;
+      if (audioData) {
+        setMessages(prev => [...prev, { role: "assistant", content: `Audio response generated.` }]);
+        const audio = new Audio(`data:audio/mp3;base64,${audioData}`);
+        audio.play();
+      }
+    } catch (err) {
+      toast.error("TTS failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // STT Logic
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      const chunks: Blob[] = [];
+
+      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        await handleSTT(blob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      toast.error("Microphone access denied");
+    }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+  };
+
+  const handleSTT = async (blob: Blob) => {
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", blob, "audio.webm");
+      formData.append("model", "openai/whisper-1");
+
+      const safeBaseUrl = baseUrl === "https://ai.hackclub.com/proxy/v1" ? "/proxy" : baseUrl;
+      const res = await fetch(`${safeBaseUrl}/audio/transcriptions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("STT failed");
+      const data = await res.json();
+      setInput(data.text);
+    } catch (err) {
+      toast.error("Speech transcription failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   // GSAP animation for new messages
   useEffect(() => {
@@ -190,6 +293,58 @@ export default function ChatPage() {
           >
             <Paperclip className="h-5 w-5" />
           </Button>
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="icon" 
+            onClick={isRecording ? stopRecording : startRecording}
+            className={cn(
+              "shrink-0 rounded-xl h-10 w-10 transition-colors",
+              isRecording ? "text-red-500 bg-red-500/10 hover:bg-red-500/20" : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+            )}
+          >
+            {isRecording ? <MicOff className="h-5 w-5 animate-pulse" /> : <Mic className="h-5 w-5" />}
+          </Button>
+
+          <Popover open={isToolsOpen} onOpenChange={setIsToolsOpen}>
+            <PopoverTrigger asChild>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="icon" 
+                className="shrink-0 text-muted-foreground hover:text-foreground hover:bg-background/50 rounded-xl h-10 w-10"
+              >
+                <Wand2 className="h-5 w-5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2 mb-2 bg-card/80 backdrop-blur-xl border-border/50 shadow-2xl rounded-2xl" side="top" align="center">
+              <div className="flex flex-col gap-1">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1.5 opacity-50">Multimodal Tools</p>
+                <button 
+                  onClick={handleQuickImage}
+                  className="flex items-center gap-3 w-full px-3 py-2 text-sm text-foreground hover:bg-primary/10 hover:text-primary rounded-xl transition-all active:scale-95"
+                >
+                  <Sparkles size={16} className="text-yellow-500" />
+                  Generate Image
+                </button>
+                <button 
+                  onClick={() => toast.info("Music generation coming to chat soon")}
+                  className="flex items-center gap-3 w-full px-3 py-2 text-sm text-foreground hover:bg-primary/10 hover:text-primary rounded-xl transition-all active:scale-95"
+                >
+                  <MusicIcon size={16} className="text-blue-500" />
+                  Generate Music
+                </button>
+                <button 
+                  onClick={handleQuickTTS}
+                  className="flex items-center gap-3 w-full px-3 py-2 text-sm text-foreground hover:bg-primary/10 hover:text-primary rounded-xl transition-all active:scale-95"
+                >
+                  <Headphones size={16} className="text-purple-500" />
+                  Read Aloud (TTS)
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
           <Textarea 
             value={input}
             onChange={(e) => setInput(e.target.value)}

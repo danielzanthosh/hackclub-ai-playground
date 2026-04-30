@@ -11,7 +11,7 @@ export const HC_ACCENT_COLORS = [
 
 export type HCAccentColor = (typeof HC_ACCENT_COLORS)[number]["hex"];
 
-export const DEFAULT_BASE_URL = "/proxy";
+export const DEFAULT_BASE_URL = "https://ai.hackclub.com/proxy/v1";
 
 export interface ModelInfo {
   id: string;

@@ -17,8 +17,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing model or input" }, { status: 400 });
     }
 
-    // Pass the HC AI key directly to Replicate since HC AI proxies it
-    const replicate = new Replicate({ auth: apiKey });
+    // Use the Hack Club AI proxy as the base URL for Replicate
+    // This allows using the HC AI key for Replicate models
+    const replicate = new Replicate({ 
+      auth: apiKey,
+      baseUrl: "https://ai.hackclub.com/proxy/v1"
+    });
     
     // Check if the model is a chat/text model that should stream
     // For now, we'll support streaming if requested in the body or by default for certain models

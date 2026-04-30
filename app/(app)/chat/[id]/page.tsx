@@ -4,8 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useUser } from "@/components/user-provider";
 import { useParams as useChatParams } from "@/components/params-panel";
 import { supabase } from "@/lib/supabase";
-import { streamChat, ChatMessage } from "@/lib/hackclub-ai";
-import { Paperclip, Send, Loader2, Bot, User } from "lucide-react";
+import { streamChat, ChatMessage, generateImage } from "@/lib/hackclub-ai";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import ReactMarkdown from "react-markdown";
@@ -16,10 +15,24 @@ import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import useSWR from "swr";
 import gsap from "gsap";
-
 import { cn } from "@/lib/utils";
+import { Paperclip, Send, Loader2, Bot, User, Mic, MicOff, Image as ImageIcon, Music as MusicIcon, Play, Sparkles, Headphones, Wand2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
+export default function ChatIdPage() {
+  const { id } = useParams();
+  const { apiKey, baseUrl, userId, personalization } = useUser();
+  const { params: currentParams, activeModel } = useChatParams();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
+  
+  const endRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   const { data: chat, mutate: mutateChat } = useSWR(id ? `chat-${id}` : null, async () => {
     const { data, error } = await supabase.from("chats").select("*, messages(*)").eq("id", id).single();
@@ -50,41 +63,142 @@ import { cn } from "@/lib/utils";
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading, chat?.messages?.length]);
 
+  // STT Logic
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      const chunks: Blob[] = [];
+
+      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        await handleSTT(blob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      toast.error("Microphone access denied");
+    }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+  };
+
+  const handleSTT = async (blob: Blob) => {
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", blob, "audio.webm");
+      formData.append("model", "openai/whisper-1");
+
+      const safeBaseUrl = "/proxy";
+      const res = await fetch(`${safeBaseUrl}/audio/transcriptions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: formData,
+      });
+
+      if (!res.ok) throw new Error("STT failed");
+      const data = await res.json();
+      setInput(data.text);
+    } catch (err) {
+      toast.error("Speech transcription failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Tools
+  const handleQuickImage = async () => {
+    if (!input.trim()) { toast.error("Enter a prompt first"); return; }
+    setIsLoading(true);
+    setIsToolsOpen(false);
+    try {
+      const url = await generateImage(baseUrl, apiKey, input, "google/gemini-2.5-flash-image");
+      const content = `![Generated Image](${url})`;
+      setMessages(prev => [...prev, { role: "assistant", content }]);
+      // Save to Supabase
+      await supabase.from("messages").insert([
+        { chat_id: id, role: "assistant", content }
+      ]);
+    } catch (err) {
+      toast.error("Image generation failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleQuickTTS = async () => {
+    if (!input.trim()) { toast.error("Enter text first"); return; }
+    setIsLoading(true);
+    setIsToolsOpen(false);
+    try {
+      const safeBaseUrl = "/proxy";
+      const res = await fetch(`${safeBaseUrl}/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: "openai/gpt-4o-audio-preview",
+          messages: [{ role: "user", content: input }],
+          modalities: ["text", "audio"],
+          audio: { voice: "alloy", format: "mp3" }
+        }),
+      });
+      const data = await res.json();
+      const audioData = data.choices?.[0]?.message?.audio?.data;
+      if (audioData) {
+        setMessages(prev => [...prev, { role: "assistant", content: `Audio response generated.` }]);
+        const audio = new Audio(`data:audio/mp3;base64,${audioData}`);
+        audio.play();
+      }
+    } catch (err) {
+      toast.error("TTS failed");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Auto-titling logic
   useEffect(() => {
     if (messages.length >= 4 && messages.length <= 6 && chat && apiKey) {
-      // Only re-title if we haven't already or if it's the default raw title
-      const isDefaultTitle = chat.title.length < 100 && !chat.title.includes(' '); // very basic heuristic
+      const isDefaultTitle = chat.title.length < 100 && !chat.title.includes(' ');
       
-      const updateTitle = async () => {
-        try {
-          const titlePrompt = "Based on the conversation above, provide a very concise (3-5 words) title for this chat. Respond ONLY with the title text.";
-          const apiMessages = [
-            ...messages.slice(0, 5),
-            { role: "user", content: titlePrompt } as ChatMessage
-          ];
+      if (isDefaultTitle) {
+        const updateTitle = async () => {
+          try {
+            const titlePrompt = "Based on the conversation above, provide a very concise (3-5 words) title for this chat. Respond ONLY with the title text.";
+            const apiMessages = [
+              ...messages.slice(0, 5),
+              { role: "user", content: titlePrompt } as ChatMessage
+            ];
 
-          await streamChat(
-            baseUrl,
-            apiKey,
-            apiMessages,
-            { ...currentParams, stream: false, maxTokens: 20 },
-            () => {},
-            async (fullText) => {
-              const cleanTitle = fullText.replace(/["']/g, '').trim();
-              if (cleanTitle && cleanTitle.length > 2) {
-                await supabase.from("chats").update({ title: cleanTitle }).eq("id", id);
-                mutateChat();
-              }
-            },
-            () => {}
-          );
-        } catch (e) {
-          console.error("Auto-titling failed", e);
-        }
-      };
-
-      updateTitle();
+            await streamChat(
+              baseUrl,
+              apiKey,
+              apiMessages,
+              { ...currentParams, stream: false, maxTokens: 20 },
+              () => {},
+              async (fullText) => {
+                const cleanTitle = fullText.replace(/["']/g, '').trim();
+                if (cleanTitle && cleanTitle.length > 2) {
+                  await supabase.from("chats").update({ title: cleanTitle }).eq("id", id);
+                  mutateChat();
+                }
+              },
+              () => {}
+            );
+          } catch (e) {
+            console.error("Auto-titling failed", e);
+          }
+        };
+        updateTitle();
+      }
     }
   }, [messages.length, id, apiKey, chat, baseUrl, currentParams, mutateChat]);
 
@@ -97,7 +211,6 @@ import { cn } from "@/lib/utils";
     setInput("");
     setIsLoading(true);
 
-    // Build personalization string
     const personalInfo = Object.entries(personalization)
       .filter(([_, v]) => !!v)
       .map(([k, v]) => `${k}: ${v}`)
@@ -131,16 +244,10 @@ import { cn } from "@/lib/utils";
       },
       async (fullText) => {
         setIsLoading(false);
-        
-        const { error } = await supabase.from("messages").insert([
+        await supabase.from("messages").insert([
           { chat_id: id, role: "user", content: input },
           { chat_id: id, role: "assistant", content: fullText },
         ]);
-
-        if (error) {
-          console.error("Error saving messages:", error);
-          toast.error("Failed to save message");
-        }
       },
       (err) => {
         console.error(err);
@@ -205,6 +312,58 @@ import { cn } from "@/lib/utils";
           >
             <Paperclip className="h-5 w-5" />
           </Button>
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="icon" 
+            onClick={isRecording ? stopRecording : startRecording}
+            className={cn(
+              "shrink-0 rounded-xl h-10 w-10 transition-colors",
+              isRecording ? "text-red-500 bg-red-500/10 hover:bg-red-500/20" : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+            )}
+          >
+            {isRecording ? <MicOff className="h-5 w-5 animate-pulse" /> : <Mic className="h-5 w-5" />}
+          </Button>
+
+          <Popover open={isToolsOpen} onOpenChange={setIsToolsOpen}>
+            <PopoverTrigger asChild>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="icon" 
+                className="shrink-0 text-muted-foreground hover:text-foreground hover:bg-background/50 rounded-xl h-10 w-10"
+              >
+                <Wand2 className="h-5 w-5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2 mb-2 bg-card/80 backdrop-blur-xl border-border/50 shadow-2xl rounded-2xl" side="top" align="center">
+              <div className="flex flex-col gap-1">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1.5 opacity-50">Multimodal Tools</p>
+                <button 
+                  onClick={handleQuickImage}
+                  className="flex items-center gap-3 w-full px-3 py-2 text-sm text-foreground hover:bg-primary/10 hover:text-primary rounded-xl transition-all active:scale-95"
+                >
+                  <Sparkles size={16} className="text-yellow-500" />
+                  Generate Image
+                </button>
+                <button 
+                  onClick={() => toast.info("Music generation coming to chat soon")}
+                  className="flex items-center gap-3 w-full px-3 py-2 text-sm text-foreground hover:bg-primary/10 hover:text-primary rounded-xl transition-all active:scale-95"
+                >
+                  <MusicIcon size={16} className="text-blue-500" />
+                  Generate Music
+                </button>
+                <button 
+                  onClick={handleQuickTTS}
+                  className="flex items-center gap-3 w-full px-3 py-2 text-sm text-foreground hover:bg-primary/10 hover:text-primary rounded-xl transition-all active:scale-95"
+                >
+                  <Headphones size={16} className="text-purple-500" />
+                  Read Aloud (TTS)
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
           <Textarea 
             value={input}
             onChange={(e) => setInput(e.target.value)}

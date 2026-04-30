@@ -26,7 +26,10 @@ export default function MusicPage() {
         },
         body: JSON.stringify({
           model: REPLICATE_MODELS.music,
-          input: { prompt_b: prompt }, // Google Lyria uses prompt_b for text input
+          input: { 
+            prompt_b: prompt,
+            // You can add more specific inputs for Lyria if needed
+          },
         }),
       });
       const data = await res.json();

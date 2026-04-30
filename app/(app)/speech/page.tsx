@@ -22,15 +22,16 @@ export default function SpeechPage() {
     setIsTtsLoading(true);
     setError("");
     try {
-      // Use OpenRouter via HC Proxy with the openai/gpt-audio model
-      const res = await fetch("https://ai.hackclub.com/proxy/v1/chat/completions", {
+      const safeBaseUrl = "/proxy";
+      // Use OpenRouter via HC Proxy with the openai/gpt-4o-audio-preview model or similar
+      const res = await fetch(`${safeBaseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "openai/gpt-audio",
+          model: "openai/gpt-4o-audio-preview",
           messages: [{ role: "user", content: ttsInput }],
           modalities: ["text", "audio"],
           audio: { voice: "alloy", format: "mp3" }

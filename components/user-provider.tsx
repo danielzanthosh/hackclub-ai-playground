@@ -34,7 +34,7 @@ const UserContext = createContext<UserContextValue>({
   avatarColor: "#ec3750",
   accentColor: "#ec3750",
   apiKey: "",
-  baseUrl: DEFAULT_BASE_URL,
+  baseUrl: "https://ai.hackclub.com/proxy/v1",
   customModels: [],
   defaultChatModel: "google/gemini-2.5-flash",
   defaultSystemPrompt: "You are a helpful AI assistant.",
@@ -84,7 +84,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
               avatar_color: "#ec3750",
               accent_color: "#ec3750",
               api_key: "",
-              base_url: DEFAULT_BASE_URL,
+              base_url: "https://ai.hackclub.com/proxy/v1",
             },
           ])
           .select()
@@ -125,7 +125,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         avatarColor: user?.avatar_color ?? "#ec3750",
         accentColor: user?.accent_color ?? "#ec3750",
         apiKey,
-        baseUrl: user?.base_url ?? DEFAULT_BASE_URL,
+        baseUrl: user?.base_url ?? "https://ai.hackclub.com/proxy/v1",
         customModels: user?.custom_models ?? [],
         defaultChatModel: user?.default_chat_model ?? "google/gemini-2.5-flash",
         defaultSystemPrompt: user?.default_system_prompt ?? "You are a helpful AI assistant.",
