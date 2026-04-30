@@ -9,6 +9,8 @@ import { useLayoutState } from "@/components/layout-context";
 import { Settings, MessageSquare, Image, Mic, Music, Hash, Wrench, PlusCircle, Trash2, PanelLeftClose, PanelLeftOpen, SplitSquareHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useEffect, useRef } from "react";
+import gsap from "gsap";
 
 // Inline HC icon-rounded SVG
 function HCIcon({ size = 28 }: { size?: number }) {
@@ -40,6 +42,17 @@ export function Sidebar() {
   const pathname = usePathname();
   const { userId, name, avatarColor, accentColor } = useUser();
   const { isSidebarOpen, setSidebarOpen } = useLayoutState();
+  const sideRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (isSidebarOpen && sideRef.current) {
+      const items = sideRef.current.querySelectorAll("nav a, .chat-history-item, .new-chat-btn, .user-chip");
+      gsap.fromTo(items, 
+        { opacity: 0, x: -20 }, 
+        { opacity: 1, x: 0, duration: 0.4, stagger: 0.03, ease: "power2.out", delay: 0.1 }
+      );
+    }
+  }, [isSidebarOpen]);
 
   const { data: chats = [], mutate } = useSWR(
     userId ? `chats-${userId}` : null,
@@ -71,11 +84,11 @@ export function Sidebar() {
 
   if (!isSidebarOpen) {
     return (
-      <aside className="absolute z-50 md:relative w-[50px] flex-shrink-0 flex flex-col items-center py-4 bg-sidebar border-r border-sidebar-border h-full transition-transform duration-300 -translate-x-full md:translate-x-0">
+      <aside className="fixed md:relative z-50 w-[50px] flex-shrink-0 flex flex-col items-center py-4 bg-sidebar border-r border-sidebar-border h-full transition-transform duration-300 -translate-x-full md:translate-x-0">
         <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground transition-colors mb-4">
           <HCIcon size={24} />
         </button>
-        <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors mt-auto">
+        <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors mt-auto hidden md:flex">
           <PanelLeftOpen size={18} />
         </button>
       </aside>
@@ -86,27 +99,30 @@ export function Sidebar() {
     <>
       {isSidebarOpen && (
         <div 
-          className="md:hidden fixed inset-0 z-40 bg-black/50" 
+          className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity" 
           onClick={() => setSidebarOpen(false)} 
         />
       )}
-      <aside className="absolute z-50 md:relative w-[220px] flex-shrink-0 flex flex-col bg-sidebar border-r border-sidebar-border h-full transition-transform duration-300 translate-x-0">
+      <aside ref={sideRef} className={cn(
+        "fixed md:relative z-50 w-[260px] md:w-[220px] flex-shrink-0 flex flex-col bg-sidebar border-r border-sidebar-border h-full transition-transform duration-300 ease-in-out",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+      )}>
       {/* Header */}
-      <div className="flex items-center gap-2.5 px-3 py-3.5 border-b border-sidebar-border">
+      <div className="flex items-center gap-2.5 px-4 py-4 border-b border-sidebar-border">
         <HCIcon size={28} />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-sidebar-foreground truncate leading-tight">HC Create</p>
           <p className="text-[10px] text-muted-foreground">AI Playground</p>
         </div>
         <span className="text-[9px] font-semibold bg-muted text-muted-foreground px-1.5 py-0.5 rounded mr-1">BETA</span>
-        <button onClick={() => setSidebarOpen(false)} className="p-1 rounded hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground">
-          <PanelLeftClose size={16} />
+        <button onClick={() => setSidebarOpen(false)} className="p-2 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground">
+          <PanelLeftClose size={18} />
         </button>
       </div>
 
       {/* Nav */}
-      <nav className="px-2 pt-3 pb-1">
-        <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-1">Modes</p>
+      <nav className="px-2 pt-4 pb-2">
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 mb-2 opacity-50">Modes</p>
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href);
           return (
@@ -115,13 +131,13 @@ export function Sidebar() {
               href={href}
               onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}
               className={cn(
-                "flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm mb-0.5 transition-colors",
+                "flex items-center gap-3 px-3 py-2 rounded-xl text-sm mb-1 transition-all active:scale-[0.98]",
                 active
-                  ? "bg-[color-mix(in_srgb,var(--hc-accent)_12%,transparent)] text-[var(--hc-accent)] font-semibold"
+                  ? "bg-[color-mix(in_srgb,var(--hc-accent)_15%,transparent)] text-[var(--hc-accent)] font-bold shadow-sm"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
               )}
             >
-              <Icon size={15} className={active ? "text-[var(--hc-accent)]" : ""} />
+              <Icon size={18} className={active ? "text-[var(--hc-accent)]" : ""} />
               {label}
             </Link>
           );
@@ -129,13 +145,13 @@ export function Sidebar() {
       </nav>
 
       {/* New Chat Button */}
-      <div className="px-2 py-2 border-t border-sidebar-border">
+      <div className="px-3 py-3 border-t border-sidebar-border">
         <Link
           href="/chat"
           onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}
-          className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+          className="new-chat-btn flex items-center justify-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-all active:scale-[0.98] shadow-md"
         >
-          <PlusCircle size={14} />
+          <PlusCircle size={16} />
           New Chat
         </Link>
       </div>
@@ -146,7 +162,7 @@ export function Sidebar() {
           <>
             <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-1 pt-1">History</p>
             {chats.map((chat: any) => (
-              <div key={chat.id} className="group flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-sidebar-accent cursor-pointer transition-colors">
+              <div key={chat.id} className="chat-history-item group flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-sidebar-accent cursor-pointer transition-colors">
                 <Link href={`/chat/${chat.id}`} onClick={() => window.innerWidth < 768 && setSidebarOpen(false)} className="flex-1 truncate text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground">
                   {chat.title}
                 </Link>
@@ -170,7 +186,7 @@ export function Sidebar() {
         <Link
           href="/settings"
           onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}
-          className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-sidebar-accent hover:bg-sidebar-accent/80 transition-colors cursor-pointer"
+          className="user-chip flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-sidebar-accent hover:bg-sidebar-accent/80 transition-colors cursor-pointer"
         >
           {/* Avatar */}
           <div

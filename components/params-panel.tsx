@@ -17,6 +17,8 @@ import { Switch } from "@/components/ui/switch";
 import { PanelRightClose, PanelRightOpen, PenLine, ListFilter, Check, ChevronsUpDown, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLayoutState } from "@/components/layout-context";
+import gsap from "gsap";
+import { useRef } from "react";
 
 export interface ChatParams {
   model: string;
@@ -51,7 +53,21 @@ export function useParams() {
 }
 
 export function ParamsPanelProvider({ children }: { children: React.ReactNode }) {
-  const [params, setParamsState] = useState<ChatParams>(defaultChatParams);
+  const { defaultChatModel, defaultSystemPrompt } = useUser();
+  const [params, setParamsState] = useState<ChatParams>({
+    ...defaultChatParams,
+    model: defaultChatModel,
+    systemPrompt: defaultSystemPrompt,
+  });
+
+  useEffect(() => {
+    setParamsState((prev) => ({
+      ...prev,
+      model: defaultChatModel,
+      systemPrompt: defaultSystemPrompt,
+    }));
+  }, [defaultChatModel, defaultSystemPrompt]);
+
   const setParams = useCallback((p: Partial<ChatParams>) => {
     setParamsState((prev) => ({ ...prev, ...p }));
   }, []);
@@ -69,6 +85,17 @@ export function ParamsPanel() {
   const { params, setParams } = useParams();
   const [isCustomModel, setIsCustomModel] = useState(false);
   const [openCombobox, setOpenCombobox] = useState(false);
+  const panelRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (isParamsOpen && panelRef.current) {
+      const items = panelRef.current.querySelectorAll(".flex-col.gap-4 > div, .flex-col.gap-6 > div");
+      gsap.fromTo(items, 
+        { opacity: 0, x: 20 }, 
+        { opacity: 1, x: 0, duration: 0.4, stagger: 0.03, ease: "power2.out", delay: 0.1 }
+      );
+    }
+  }, [isParamsOpen]);
 
   const [models, setModels] = useState<{id: string, name: string}[]>([]);
   const textModels = models.length > 0 ? models : [{ id: params.model || "google/gemini-2.5-flash", name: "Loading models..." }];
@@ -135,7 +162,7 @@ export function ParamsPanel() {
 
   if (!isParamsOpen) {
     return (
-      <aside className="absolute right-0 z-50 md:relative w-[50px] flex-shrink-0 flex flex-col items-center py-4 bg-sidebar border-l border-sidebar-border h-full transition-transform duration-300 translate-x-full md:translate-x-0">
+      <aside className="fixed right-0 md:relative z-50 w-[50px] flex-shrink-0 flex flex-col items-center py-4 bg-sidebar border-l border-sidebar-border h-full transition-transform duration-300 translate-x-full md:translate-x-0">
         <button onClick={() => setParamsOpen(true)} className="p-2 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors mb-4">
           <PanelRightOpen size={18} />
         </button>
@@ -147,33 +174,35 @@ export function ParamsPanel() {
     <>
       {isParamsOpen && (
         <div 
-          className="md:hidden fixed inset-0 z-40 bg-black/50" 
+          className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity" 
           onClick={() => setParamsOpen(false)} 
         />
       )}
-      <aside className="absolute right-0 z-50 md:relative w-[240px] flex-shrink-0 flex flex-col bg-sidebar border-l border-sidebar-border h-full overflow-y-auto transition-transform duration-300 translate-x-0">
-      <div className="px-3.5 py-3 border-b border-sidebar-border flex items-center justify-between">
+      <aside ref={panelRef} className={cn(
+        "fixed right-0 md:relative z-50 w-[280px] md:w-[240px] flex-shrink-0 flex flex-col bg-sidebar border-l border-sidebar-border h-full overflow-y-auto transition-transform duration-300 ease-in-out",
+        isParamsOpen ? "translate-x-0" : "translate-x-full md:translate-x-0"
+      )}>
+      <div className="px-4 py-4 border-b border-sidebar-border flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full" style={{ background: "var(--hc-accent)" }} />
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Parameters</span>
+          <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--hc-accent)" }} />
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-70">Parameters</span>
         </div>
-        <button onClick={() => setParamsOpen(false)} className="p-1 rounded hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground">
-          <PanelRightClose size={16} />
+        <button onClick={() => setParamsOpen(false)} className="p-2 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground">
+          <PanelRightClose size={18} />
         </button>
       </div>
 
-      <div className="flex flex-col gap-4 p-3.5 flex-1">
+      <div className="flex flex-col gap-6 p-4 flex-1">
         {/* Model */}
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Model</Label>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between px-1">
+            <Label className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Model Selection</Label>
             <button 
               onClick={() => setIsCustomModel(!isCustomModel)}
-              className="text-[10px] flex items-center gap-1 text-muted-foreground hover:text-sidebar-foreground transition-colors"
-              title="Toggle Custom Model ID input"
+              className="text-[10px] flex items-center gap-1.5 text-muted-foreground hover:text-sidebar-foreground transition-colors font-medium bg-secondary/50 px-2 py-0.5 rounded-full"
             >
-              {isCustomModel ? <ListFilter size={12} /> : <PenLine size={12} />}
-              {isCustomModel ? "Select" : "Custom"}
+              {isCustomModel ? <ListFilter size={11} /> : <PenLine size={11} />}
+              {isCustomModel ? "Presets" : "Custom"}
             </button>
           </div>
           

@@ -16,6 +16,14 @@ interface UserContextValue {
   apiKey: string;
   baseUrl: string;
   customModels: string[];
+  defaultChatModel: string;
+  defaultSystemPrompt: string;
+  personalization: {
+    name?: string;
+    age?: string;
+    tone?: string;
+    bio?: string;
+  };
   isReady: boolean;
 }
 
@@ -28,6 +36,9 @@ const UserContext = createContext<UserContextValue>({
   apiKey: "",
   baseUrl: DEFAULT_BASE_URL,
   customModels: [],
+  defaultChatModel: "google/gemini-2.5-flash",
+  defaultSystemPrompt: "You are a helpful AI assistant.",
+  personalization: {},
   isReady: false,
 });
 
@@ -116,6 +127,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         apiKey,
         baseUrl: user?.base_url ?? DEFAULT_BASE_URL,
         customModels: user?.custom_models ?? [],
+        defaultChatModel: user?.default_chat_model ?? "google/gemini-2.5-flash",
+        defaultSystemPrompt: user?.default_system_prompt ?? "You are a helpful AI assistant.",
+        personalization: user?.personalization ?? {},
         isReady: !!user,
       }}
     >

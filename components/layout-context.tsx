@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 
 interface LayoutStateContextType {
   isSidebarOpen: boolean;
@@ -23,6 +23,14 @@ export function useLayoutState() {
 export function LayoutStateProvider({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [isParamsOpen, setParamsOpen] = useState(true);
+
+  // Close sidebars by default on mobile
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setSidebarOpen(false);
+      setParamsOpen(false);
+    }
+  }, []);
 
   return (
     <LayoutStateContext.Provider

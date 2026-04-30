@@ -14,9 +14,11 @@ import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import gsap from "gsap";
 
 export default function ChatPage() {
-  const { apiKey, baseUrl, userId } = useUser();
+  const { apiKey, baseUrl, userId, personalization } = useUser();
   const { params, activeModel } = useParams();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -24,22 +26,46 @@ export default function ChatPage() {
   const router = useRouter();
   
   const endRef = useRef<HTMLDivElement>(null);
-  
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // GSAP animation for new messages
   useEffect(() => {
+    if (messagesContainerRef.current) {
+      const lastMessage = messagesContainerRef.current.lastElementChild;
+      if (lastMessage && !isLoading) {
+        gsap.fromTo(lastMessage, 
+          { opacity: 0, y: 10 }, 
+          { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }
+        );
+      }
+    }
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || !apiKey || !userId) return;
 
     const userMsg: ChatMessage = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMsg]);
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
 
+    // Build the personalization string
+    const personalInfo = Object.entries(personalization)
+      .filter(([_, v]) => !!v)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(", ");
+    
+    const enrichedSystemPrompt = personalInfo 
+      ? `${params.systemPrompt}\n\n[USER INFO]: ${personalInfo}`
+      : params.systemPrompt;
+
     const apiMessages = [
-      { role: "system", content: params.systemPrompt } as ChatMessage,
+      { role: "system", content: enrichedSystemPrompt } as ChatMessage,
       ...messages,
       userMsg,
     ];
@@ -63,7 +89,7 @@ export default function ChatPage() {
       async (fullText) => {
         setIsLoading(false);
         
-        // Auto-title from first user message
+        // Initial title from first user message
         const title = input.slice(0, 60) + (input.length > 60 ? "…" : "");
         
         // Save to Supabase
@@ -86,14 +112,10 @@ export default function ChatPage() {
           return;
         }
 
-        const { error: msgError } = await supabase.from("messages").insert([
+        await supabase.from("messages").insert([
           { chat_id: chat.id, role: "user", content: input },
           { chat_id: chat.id, role: "assistant", content: fullText },
         ]);
-
-        if (msgError) {
-          console.error("Error saving messages:", msgError);
-        }
 
         // Redirect to the new chat page
         router.push(`/chat/${chat.id}`);
@@ -107,32 +129,65 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-background relative">
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
-        {messages.map((m, i) => (
-          <div key={i} className={`flex gap-3 max-w-4xl mx-auto ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
-             <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-sidebar-accent'}`}>
-                {m.role === 'user' ? <User size={16} /> : <Bot size={16} style={{ color: "var(--hc-accent)" }} />}
-             </div>
-             <div className={`max-w-[85%] px-5 py-4 text-sm ${m.role === 'user' ? 'bg-primary text-primary-foreground rounded-2xl rounded-tr-sm' : 'bg-transparent'}`}>
-                {m.role === 'user' ? (
-                  <div className="whitespace-pre-wrap">{typeof m.content === 'string' ? m.content : 'Complex content'}</div>
-                ) : (
-                  <div className="prose prose-sm dark:prose-invert max-w-none text-foreground prose-p:leading-relaxed prose-pre:bg-secondary prose-pre:border prose-pre:border-border overflow-hidden">
-                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                      {typeof m.content === 'string' ? m.content : 'Complex content'}
-                    </ReactMarkdown>
-                  </div>
-                )}
-             </div>
+    <div className="flex flex-col h-full bg-background relative overflow-hidden">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 custom-scrollbar">
+        {messages.length === 0 && (
+          <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50 px-4">
+            <Bot size={48} className="text-[var(--hc-accent)] mb-2" />
+            <h2 className="text-xl font-bold tracking-tight">How can I help you today?</h2>
+            <p className="text-sm max-w-sm">Start a conversation with {activeModel.split('/').pop()}. Your settings and persona are already synced.</p>
           </div>
-        ))}
-        <div ref={endRef} />
+        )}
+        {messages.map((m, i) => {
+          const isLast = i === messages.length - 1;
+          const isAssistant = m.role === 'assistant';
+          const showCursor = isLast && isAssistant && isLoading;
+
+          return (
+            <div key={i} className={`flex gap-4 max-w-4xl mx-auto w-full ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
+               <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm border ${m.role === 'user' ? 'bg-primary border-primary' : 'bg-card border-border'}`}>
+                  {m.role === 'user' ? <User size={14} className="text-primary-foreground" /> : <Bot size={14} style={{ color: "var(--hc-accent)" }} />}
+               </div>
+               <div className={cn(
+                 "max-w-[85%] md:max-w-[75%] px-5 py-3.5 text-[15px] leading-relaxed",
+                 m.role === 'user' 
+                  ? "bg-primary text-primary-foreground rounded-3xl rounded-tr-sm shadow-md" 
+                  : "bg-card border border-border/50 rounded-3xl rounded-tl-sm shadow-sm"
+               )}>
+                  {m.role === 'user' ? (
+                    <div className="whitespace-pre-wrap">{typeof m.content === 'string' ? m.content : 'Complex content'}</div>
+                  ) : (
+                    <div className={cn(
+                      "prose prose-sm dark:prose-invert max-w-none text-foreground prose-p:leading-relaxed prose-pre:bg-secondary prose-pre:border prose-pre:border-border overflow-hidden",
+                      showCursor && "streaming-cursor"
+                    )}>
+                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                        {typeof m.content === 'string' ? m.content : 'Complex content'}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+               </div>
+            </div>
+          );
+        })}
+        <div ref={endRef} className="h-4" />
       </div>
       
-      <div className="p-4 border-t border-border">
-        <form onSubmit={handleSubmit} className="flex gap-2 items-end bg-card border border-border rounded-xl p-2 focus-within:ring-1 focus-within:ring-primary">
-          <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-foreground">
+      <div className="p-4 md:p-6 bg-gradient-to-t from-background via-background/95 to-transparent">
+        <form onSubmit={handleSubmit} className="relative flex items-center bg-card/50 backdrop-blur-xl border border-border/50 rounded-2xl p-1.5 focus-within:ring-2 focus-within:ring-[var(--hc-accent)]/20 focus-within:border-[var(--hc-accent)]/40 transition-all max-w-4xl mx-auto shadow-2xl">
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            onChange={() => toast.info("File upload coming soon")}
+          />
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => fileInputRef.current?.click()}
+            className="shrink-0 text-muted-foreground hover:text-foreground hover:bg-background/50 rounded-xl h-10 w-10"
+          >
             <Paperclip className="h-5 w-5" />
           </Button>
           <Textarea 
@@ -144,14 +199,21 @@ export default function ChatPage() {
                 handleSubmit(e);
               }
             }}
-            placeholder="Type a message..."
-            className="min-h-[44px] max-h-48 bg-transparent border-none resize-none focus-visible:ring-0 px-0 py-3"
+            placeholder="Ask anything..."
+            className="min-h-[44px] max-h-64 bg-transparent border-none resize-none focus-visible:ring-0 px-3 py-3 text-[15px]"
             rows={1}
           />
-          <Button type="submit" disabled={!input.trim() || isLoading || !apiKey} size="icon" className="shrink-0 rounded-lg">
+          <Button 
+            type="submit" 
+            disabled={!input.trim() || isLoading || !apiKey} 
+            className="shrink-0 rounded-xl h-10 w-10 bg-primary shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
+          >
              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </form>
+        <p className="text-[10px] text-center text-muted-foreground mt-3 opacity-50">
+          HC AI can make mistakes. Verify important info.
+        </p>
       </div>
     </div>
   );

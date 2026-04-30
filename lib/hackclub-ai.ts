@@ -107,6 +107,61 @@ export async function streamChat(
   }
 }
 
+export async function streamReplicate(
+  apiKey: string,
+  model: string,
+  input: any,
+  onChunk: (event: any) => void,
+  onDone: () => void,
+  onError: (err: string) => void
+): Promise<void> {
+  try {
+    const res = await fetch("/api/replicate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ model, input, stream: true }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      onError(`Replicate error ${res.status}: ${errText}`);
+      return;
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) { onError("No response body"); return; }
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const data = line.slice(6).trim();
+        if (data === "[DONE]") { onDone(); return; }
+        try {
+          const parsed = JSON.parse(data);
+          onChunk(parsed);
+        } catch {
+          // skip malformed
+        }
+      }
+    }
+    onDone();
+  } catch (err) {
+    onError(err instanceof Error ? err.message : String(err));
+  }
+}
+
 export async function generateImage(
   baseUrl: string,
   apiKey: string,
@@ -147,12 +202,17 @@ export async function generateImage(
     return markdownMatch[1];
   }
 
+  // If it's a data URL or raw base64 that looks like an image
+  if (content.startsWith("data:image") || content.length > 1000) {
+    return content.trim();
+  }
+
   // If it's just a raw URL
   if (content.trim().startsWith("http")) {
     return content.trim();
   }
 
-  // Otherwise, maybe they returned JSON or something weird, just return the content as a data URL if base64 or raw string
+  // Otherwise, return the content as is
   return content;
 }
 
