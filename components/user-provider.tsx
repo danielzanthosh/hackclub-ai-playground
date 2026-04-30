@@ -149,7 +149,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const login = () => {
     supabase.auth.signInWithOAuth({
-      provider: "grace" as any, // Matches the Custom OIDC identifier set in Supabase
+      provider: "keycloak" as any, // Reverting to keycloak slot for stability
       options: {
         redirectTo: window.location.origin,
         scopes: "openid profile email slack_id",
