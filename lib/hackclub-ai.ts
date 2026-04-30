@@ -36,6 +36,23 @@ export async function streamChat(
   let fullText = "";
 
   try {
+    if (!params.stream) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ ...params, messages, stream: false }),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        onError(`API error ${res.status}: ${errText}`);
+        return;
+      }
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content || "";
+      onDone(content);
+      return;
+    }
+
     const res = await fetch(url, {
       method: "POST",
       headers: {

@@ -72,7 +72,7 @@ export default function ChatIdPage() {
         currentAiText = chunk;
         setMessages((prev) => {
           const newMsgs = [...prev];
-          newMsgs[newMsgs.length - 1].content = currentAiText;
+          newMsgs[newMsgs.length - 1] = { ...newMsgs[newMsgs.length - 1], content: currentAiText };
           return newMsgs;
         });
       },

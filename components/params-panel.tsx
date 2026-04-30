@@ -135,7 +135,7 @@ export function ParamsPanel() {
 
   if (!isParamsOpen) {
     return (
-      <aside className="w-[50px] flex-shrink-0 flex flex-col items-center py-4 bg-sidebar border-l border-sidebar-border h-full transition-all duration-300">
+      <aside className="absolute right-0 z-50 md:relative w-[50px] flex-shrink-0 flex flex-col items-center py-4 bg-sidebar border-l border-sidebar-border h-full transition-transform duration-300 translate-x-full md:translate-x-0">
         <button onClick={() => setParamsOpen(true)} className="p-2 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-sidebar-foreground transition-colors mb-4">
           <PanelRightOpen size={18} />
         </button>
@@ -144,7 +144,14 @@ export function ParamsPanel() {
   }
 
   return (
-    <aside className="w-[240px] flex-shrink-0 flex flex-col bg-sidebar border-l border-sidebar-border h-full overflow-y-auto transition-all duration-300">
+    <>
+      {isParamsOpen && (
+        <div 
+          className="md:hidden fixed inset-0 z-40 bg-black/50" 
+          onClick={() => setParamsOpen(false)} 
+        />
+      )}
+      <aside className="absolute right-0 z-50 md:relative w-[240px] flex-shrink-0 flex flex-col bg-sidebar border-l border-sidebar-border h-full overflow-y-auto transition-transform duration-300 translate-x-0">
       <div className="px-3.5 py-3 border-b border-sidebar-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full" style={{ background: "var(--hc-accent)" }} />
@@ -209,8 +216,8 @@ export function ParamsPanel() {
                         <CommandItem
                           key={m.id}
                           value={m.id}
-                          onSelect={(currentValue) => {
-                            setParams({ model: currentValue === params.model ? "" : currentValue });
+                          onSelect={() => {
+                            setParams({ model: m.id === params.model ? "" : m.id });
                             setOpenCombobox(false);
                           }}
                           className="text-xs"
@@ -323,6 +330,7 @@ export function ParamsPanel() {
         </div>
       </div>
     </aside>
+    </>
   );
 }
 

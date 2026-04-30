@@ -71,7 +71,7 @@ export function Sidebar() {
 
   if (!isSidebarOpen) {
     return (
-      <aside className="w-[50px] flex-shrink-0 flex flex-col items-center py-4 bg-sidebar border-r border-sidebar-border h-full transition-all duration-300">
+      <aside className="absolute z-50 md:relative w-[50px] flex-shrink-0 flex flex-col items-center py-4 bg-sidebar border-r border-sidebar-border h-full transition-transform duration-300 -translate-x-full md:translate-x-0">
         <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-sidebar-accent text-sidebar-foreground transition-colors mb-4">
           <HCIcon size={24} />
         </button>
@@ -83,7 +83,14 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="w-[220px] flex-shrink-0 flex flex-col bg-sidebar border-r border-sidebar-border h-full transition-all duration-300">
+    <>
+      {isSidebarOpen && (
+        <div 
+          className="md:hidden fixed inset-0 z-40 bg-black/50" 
+          onClick={() => setSidebarOpen(false)} 
+        />
+      )}
+      <aside className="absolute z-50 md:relative w-[220px] flex-shrink-0 flex flex-col bg-sidebar border-r border-sidebar-border h-full transition-transform duration-300 translate-x-0">
       {/* Header */}
       <div className="flex items-center gap-2.5 px-3 py-3.5 border-b border-sidebar-border">
         <HCIcon size={28} />
@@ -106,6 +113,7 @@ export function Sidebar() {
             <Link
               key={href}
               href={href}
+              onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}
               className={cn(
                 "flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm mb-0.5 transition-colors",
                 active
@@ -124,6 +132,7 @@ export function Sidebar() {
       <div className="px-2 py-2 border-t border-sidebar-border">
         <Link
           href="/chat"
+          onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}
           className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
         >
           <PlusCircle size={14} />
@@ -138,7 +147,7 @@ export function Sidebar() {
             <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-1 pt-1">History</p>
             {chats.map((chat: any) => (
               <div key={chat.id} className="group flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-sidebar-accent cursor-pointer transition-colors">
-                <Link href={`/chat/${chat.id}`} className="flex-1 truncate text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground">
+                <Link href={`/chat/${chat.id}`} onClick={() => window.innerWidth < 768 && setSidebarOpen(false)} className="flex-1 truncate text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground">
                   {chat.title}
                 </Link>
                 <button
@@ -160,6 +169,7 @@ export function Sidebar() {
       <div className="border-t border-sidebar-border p-2">
         <Link
           href="/settings"
+          onClick={() => window.innerWidth < 768 && setSidebarOpen(false)}
           className="flex items-center gap-2.5 px-2.5 py-2 rounded-xl bg-sidebar-accent hover:bg-sidebar-accent/80 transition-colors cursor-pointer"
         >
           {/* Avatar */}
@@ -178,5 +188,6 @@ export function Sidebar() {
         </p>
       </div>
     </aside>
+    </>
   );
 }
